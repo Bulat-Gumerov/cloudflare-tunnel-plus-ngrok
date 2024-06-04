@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # A dummy web app for reference, replace it with your own app:
+  web:
+    image: nginxdemos/hello
+    container_name: web_app
+    ports:
+      - "8080:80"
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  # We use nginx to add the 'ngrok-skip-browser-warning' header only to skip the Ngrok warning page
+  nginx:
+    image: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - web
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  ngrok:
+    image: ngrok/ngrok
+    environment:
+      NGROK_AUTHTOKEN: "YOUR_NGROK_AUTH_TOKEN"
+    depends_on:
+      - nginx
+    command: http --domain=your-ngrok-domain.ngrok-free.app nginx:80
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared
+    container_name: cloudflared_tunnel
+    command: tunnel --url http://web:80
+    depends_on:
+    - web
+    networks:
+      - app_network
+    restart: unless-stopped
+networks:
+  app_network:
+    driver: bridge
